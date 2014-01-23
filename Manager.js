@@ -70,7 +70,7 @@ var Manager = function Manager(man, max) {
         set : function(m){ max = typeof m === 'number' ? m : max; }
     });
     Object.defineProperty(this,'workers',{
-        get : function(){ return workers; },
+        get : function(){ return workers.length; },
         set : function(m){}
     });
     Object.defineProperty(this,'work',{
