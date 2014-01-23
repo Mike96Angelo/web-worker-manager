@@ -60,9 +60,10 @@ var Manager = function Manager(man, max) {
                 addWorker();
                 workers[workers.length-1].work(mes, callback);
             } else {
+                current %= workers.length;
                 workers[current].work(mes, callback);
                 current += 1;
-                current %= workers.length;
+
             }
         };
     Object.defineProperty(this,'max',{
