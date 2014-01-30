@@ -38,6 +38,7 @@ Documentation:
                             err:  Error{if worker has error completing task}
                             data: Returns{what the worker task returns}
                             mess: Object{full details of task at hand}
+
                 returns:
                     Number{id assigned to task by manager}
 
@@ -51,6 +52,9 @@ Documentation:
 
                 returns:
                     Boolean{true if task was cleared false otherwise}
+
+                does:
+                    clears task if task hasn't being completed.
 ```
 Example Web Worker file: 'worker.js'
 ```javascript
