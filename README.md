@@ -15,7 +15,7 @@ To use web-worker-manager:
     inclued web-worker-manager.js in your web projects
 
 Documentation:
-
+```javascript
     var manager = new Manager(workerFilename, workerLimit)
 
         workerFilename: String{file path to worker file}
@@ -51,9 +51,9 @@ Documentation:
 
                 returns:
                     Boolean{true if task was cleared false otherwise}
-
+```
 Example Web Worker file: 'worker.js'
-
+```javascript
     worker.on('add', function (a, b) {
         return a + b;
     });
@@ -61,9 +61,9 @@ Example Web Worker file: 'worker.js'
     worker.on('minus', function (a, b) {
         return a - b;
     });
-
+```
 Example in app file:
-
+```javascript
     var manager = new Manager('worker.js', 10);
 
     manager.send('add', [2, 4], function (err, data, mess) {
@@ -85,7 +85,7 @@ Example in app file:
             console.log(data, mess);
         }
     });
-
+```
 
 Created By:
 
