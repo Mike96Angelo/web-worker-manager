@@ -1,93 +1,93 @@
-var Manager = function Manager(workerFile, max) {
-    max = typeof max === 'number' ? max : 10;
-    var workerBlob,
-    working,
-    idUsed,
-    workers = [],
-    readyQueue = [],
-    jobQueue = [],
-    jobIds = [],
-    takenJobs = [],
-    takenIds = [],
-    FileWorker = function FileWorker(workerBlob) {
-        var status,
-        lastIdle,
-        currentJob,
-        onready,
-        onerror,
-        createWorker = function () {
-            worker = new Worker(workerBlob);
-            worker.onmessage = onjobfinish;
-            worker.onerror = onjoberror;
-            status = 'ready';
-            lastIdle = Date.now();
-            currentJob = undefined;
-        },
-        send = function (job) {
-            currentJob = job;
-            status = 'working';
-            worker.postMessage(JSON.stringify(job));
-            return this;
-        },
-        onjobfinish = function (message) {
-            lastIdle = Date.now();
-            message = JSON.parse(message.data);
-            if (currentJob.id === message.id) {
-                status = 'ready';
-                currentJob.job.callback(undefined, message.data, message);
-                onready ? onready(currentJob) : undefined;
-                currentJob = undefined;
-            }
-        },
-        onjoberror = function (err) {
-            worker.terminate();
-            status = 'error';
-            currentJob.job.callback(err);
-            currentJob = undefined;
-            onerror ? onerror(err, currentJob) : undefined;
-        },
-        close = function () {
-            worker.terminate();
-            status = 'closed';
-            currentJob = undefined;
-        },
-        isIdle = function () {
-            if (status !== 'working') {
-                return Date.now()-lastIdle;
-            } else {
-                return 0;
-            }
-        };
+var FileWorker = function FileWorker(filename, keepAlive) {
+        'use strict';
+        var fileWorker = this,
+            workerId,
+            onready,
+            onerror,
+            idleTime,
+            killWoker,
+            worker,
+            task,
+            idleFor = function (time) {
+                return task ? 0 : Date.now() - idleTime > time;
+            },
+            close = function () {
+                if (worker) {
+                    worker.terminate();
+                    worker = undefined;
+                    task = undefined;
+                }
+            },
+            start = function () {
+                worker = new Worker(filename);
+                worker.onmessage = function (event) {
+                    idleTime = Date.now();
+                    var mess = JSON.parse(event.data);
+                    mess['time-completed'] = Date.now();
+                    mess['total-time'] = mess['time-completed']
+                                            - mess['time-assigned'];
+                    task.callback(mess.error, mess.data, mess);
+                    task = undefined;
+                    return onready ? onready(fileWorker, mess) : undefined;
+                };
+                worker.onerror = function (error) {
+                    idleTime = Date.now();
+                    return onerror ? onerror(fileWorker, error) : undefined;
+                };
+                idleTime = Date.now();
+                if (!keepAlive) {
+                    killWoker = setInterval(function () {
+                        if (idleFor(5000)) {
+                            close();
+                            clearInterval(killWoker);
+                        }
+                    }, 1000);
+                }
 
-        createWorker();
+                return onready ? onready(fileWorker, undefined) : undefined;
+            },
+            send = function (job) {
+                if (!worker) {
+                    start();
+                }
+                if (!task && job) {
+                    task = job;
+                    worker.postMessage(JSON.stringify(task));
+                    return true;
+                }
+                return false;
+            };
 
-        Object.defineProperty(this, 'status', {
-            get : function(){ return status; },
-            set : function(m){}
-        });
-        Object.defineProperty(this, 'lastIdle', {
-            get : function(){ return lastIdle; },
-            set : function(m){}
-        });
-        Object.defineProperty(this, 'onready', {
-            get : function(){ return onready; },
-            set : function(m){ onready = typeof m === 'function' ? m : undefined;}
-        });
-        Object.defineProperty(this, 'onerror', {
-            get : function(){ return onready; },
-            set : function(m){ onerror = typeof m === 'function' ? m : undefined;}
-        });
-        Object.defineProperty(this, 'isIdle', {value: isIdle});
         Object.defineProperty(this, 'send', {value: send});
         Object.defineProperty(this, 'close', {value: close});
+        Object.defineProperty(this, 'start', {value: start});
         Object.defineProperty(this, 'restart', {
             value: function () {
                 close();
-                createWorker();
+                start();
             }
+        });
+        Object.defineProperty(this, 'id', {
+            get : function () { return workerId; },
+            set : function (m) { workerId = m; }
+        });
+        Object.defineProperty(this, 'status', {
+            get : function () { return task ? 'working' : 'ready'; }
+        });
+        Object.defineProperty(this, 'task', {
+            get : function () { return task; }
+        });
+        Object.defineProperty(this, 'onready', {
+            get : function () { return onready; },
+            set : function (m) { onready = typeof m === 'function' ? m : undefined; }
+        });
+        Object.defineProperty(this, 'onerror', {
+            get : function () { return onerror; },
+            set : function (m) { onerror = typeof m === 'function' ? m : undefined; }
         });
     },
     Job = function Job(id, name, data, callback) {
+        'use strict';
         Object.defineProperty(this, 'id', {
             value: id,
             enumerable: true
@@ -109,119 +109,131 @@ var Manager = function Manager(workerFile, max) {
             enumerable: true
         });
     },
-    loadWorkerFile = function (){
-        var xmlhttp;
-        if (window.XMLHttpRequest) {
-            xmlhttp = new XMLHttpRequest();
-        }
-        xmlhttp.onreadystatechange = function() {
-            if (xmlhttp.readyState==4 && xmlhttp.status==200) {
-                workerBlob = URL.createObjectURL(new Blob([
-                    "var FileWorker = function FileWorker() {\n"
-                    + "    var jobs = {},\n"
-                    + "    on = function (name, callback) {\n"
-                    + "        jobs[name] = callback;\n"
-                    + "    };\n"
-                    + "    self.onmessage = function (event) {\n"
-                    + "        mess = JSON.parse(event.data);\n"
-                    + "        mess['start-time'] = Date.now();\n"
-                    + "        mess.job.data = jobs[mess.job.name](mess.job.data, mess);\n"
-                    + "        mess['end-time'] = Date.now();\n"
-                    + "        mess['run-time'] = mess['end-time'] - mess['start-time'];\n"
-                    + "        self.postMessage(JSON.stringify(mess));\n"
-                    + "    };\n"
-                    + "    Object.defineProperty(this, 'on', {value: on});\n"
-                    + "};\n"
-                    + "var worker = new FileWorker();\n\n\n"
-                    + xmlhttp.responseText
-                ], { type: "text/javascript" }));
-                createWorker();
-                sendJob();
+    Manager = function Manager(filename, max) {
+        'use strict';
+        max = typeof max === 'number' ? max : 5;
+        var workers = [],
+            readyWorkers = [],
+            jobQueue = [],
+            workerBlobFile,
+            idUsed,
+            nextId = function () {
+                idUsed = idUsed === undefined ? 0 : idUsed + 1;
+                idUsed %= Number.MAX_VALUE;
+                return idUsed;
+            },
+            send = function (name, data, callback) {
+                var id = nextId(),
+                    task;
+
+                if (name && data && callback) {
+                    task = new Job(id, name, data, callback);
+                    jobQueue.push(task);
+                }
+                if (readyWorkers.length > 0) {
+                    return workers[readyWorkers.shift()].send();
+                }
+                return id;
+            },
+            clear = function (id) {
+                var i;
+                for (i = 0; i < workers.length; i += 1) {
+                    if (workers[i].task.id === id) {
+                        workers[i].restart();
+                        return true;
+                    }
+                }
+                for (i = 0; i < jobQueue.length; i += 1) {
+                    if (jobQueue[i].id === id) {
+                        jobQueue.splice(i, 1);
+                        return true;
+                    }
+                }
+                return false;
+            },
+            createWorkers = function () {
+                var i,
+                    onready = function (worker, mess) {
+                        if (jobQueue.length === 0) {
+                            readyWorkers.push(worker.id);
+                        } else {
+                            worker.send(jobQueue.shift());
+                        }
+                    },
+                    onerror = function (err) {
+                        throw err;
+                    };
+                for (i = 0; i < max; i += 1) {
+                    workers[i] = new FileWorker(workerBlobFile);
+                    workers[i].id = i;
+                    workers[i].onready = onready;
+                    workers[i].onerror = onerror;
+                    readyWorkers.push(workers[i].id);
+                }
+                while (jobQueue.length > 0 && readyWorkers.length > 0) {
+                    send();
+                }
+            },
+            workerBlob = function (filename) {
+                var WorkerFile = function FileWorker() {
+                        var tasks = {},
+                            on = function (name, callback) {
+                                tasks[name] = callback;
+                            };
+                        self.onmessage = function (event) {
+                            var mess = JSON.parse(event.data),
+                                taskArgs = Array.prototype.slice.call(mess.data);
+
+                            mess['time-started'] = Date.now();
+                            try {
+                                mess.data = tasks[mess.name](taskArgs);
+                            } catch (err) {
+                                mess.data = undefined;
+                                mess.error = err;
+                            }
+                            mess['time-finished'] = Date.now();
+                            mess['task-time'] = mess['time-finished']
+                                                    - mess['time-started'];
+                            self.postMessage(JSON.stringify(mess));
+                        };
+
+                        Object.defineProperty(this, 'on', {value: on});
+                    },
+                    xmlhttp;
+                if (window.XMLHttpRequest) {
+                    xmlhttp = new XMLHttpRequest();
+
+                    xmlhttp.onreadystatechange = function () {
+                        if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
+                            workerBlobFile = URL.createObjectURL(new Blob([
+                                "var WorkerFile = " + WorkerFile.toString()
+                                    + "\n\n\nvar worker = new WorkerFile();\n\n\n"
+                                    + xmlhttp.responseText
+                            ], { type: "text/javascript" }));
+                            createWorkers();
+                        }
+                    };
+                    xmlhttp.open("GET", filename, true);
+                    xmlhttp.send();
+                }
+            };
+
+        workerBlob(filename);
+
+        Object.defineProperty(this, 'send', {value: send});
+        Object.defineProperty(this, 'clear', {value: clear});
+        Object.defineProperty(this, 'workers', {
+            get : function () { return workers.length; }
+        });
+        Object.defineProperty(this, 'activeWorkers', {
+            get : function () { return workers.length - readyWorkers.length; }
+        });
+        Object.defineProperty(this, 'readyWorkers', {
+            get : function () { return readyWorkers.length; }
+        });
+        Object.defineProperty(this, 'tasks', {
+            get : function () {
+                return jobQueue.length + workers.length - readyWorkers.length;
             }
-        }
-        xmlhttp.open("GET", fileWorker, true);
-        xmlhttp.send();
-    },
-    nextId = function () {
-        idUsed = idUsed === undefined ? 0 : idUsed += 1;
-        idUsed %= Number.MAX_VALUE;
-        return idUsed;
-    }
-    addWorker = function (job) {
-        var w = new FileWorker(workerBlob);
-        w.onready = function () {
-            readyQueue.push(w);
-            takenJobs.shift();
-            takenIds.shift();
-        };
-        w.send(job);
-        workers.push(w);
-        clearInterval(working);
-        working = setInterval(function(){
-            killWorkers();
-        }, 1000);
-        return w;
-    },
-    killWorkers = function () {
-        for(var i = workers.length - 1; i >= 0; i -= 1) {
-            if (workers[i].isIdle() > 5000) {
-                readyQueue.splice(readyQueue.indexOf(workers[i]), 1);
-                workers[i].close();
-                workers.splice(i,1);
-            }
-        }
-        if (workers.length === 0) {
-            clearInterval(working);
-        }
-    },
-    send = function (name, data, callback) {
-        var id = nextId(),
-        job = new Job(id, name, data, callback),
-        worker;
-        if (workers.length === 0) {
-            worker = addWorker(job);
-            takenJobs.push({job: job, worker: workers.indexOf(worker)});
-            takenIds.push(job.id);
-        } else if (readyQueue.length > 0) {
-            worker = readyQueue.shift().send(job);
-            takenJobs.push({job: job, worker: workers.indexOf(worker)});
-            takenIds.push(job.id);
-        } else {
-            jobQueue.push(job);
-            jobIds.push(job.id);
-        }
-        return id;
-    },
-    clear = function (id){
-        var takenIndex = takenIds.indexOf(id),
-        jobIndex = jobIds.indexOf(id);
-        if (takenIndex !== -1) {
-            workers[takenJobs[takenIndex].worker].close();
-            workers.splice(takenJobs[takenIndex].worker,1);
-            return true;
-        } else if (jobIndex !== -1) {
-            jobQueue.splice(jobIndex,1);
-            jobIds.splice(jobIndex,1);
-            return true;
-        } else {
-            return false;
-        }
+        });
     };
-
-    loadWorkerFile();
-
-    Object.defineProperty(this,'max',{
-        get : function(){ return max; },
-        set : function(m){ max = typeof m === 'number' ? m : max; }
-    });
-    Object.defineProperty(this,'workers',{
-        get : function(){ return workers.length; },
-        set : function(m){}
-    });
-    Object.defineProperty(this,'jobs',{
-        get : function(){ return jobQueue.length + takenJobs.length; },
-        set : function(m){}
-    });
-    Object.defineProperty(this, 'send', {value: send});
-    Object.defineProperty(this, 'clear', {value: clear});
-};
