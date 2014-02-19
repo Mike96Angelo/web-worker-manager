@@ -1,0 +1,24 @@
+{
+  "name": "web-worker-manager",
+  "version": "0.1.2",
+  "description": "Have long running tasks that you want to perform without blocking your main process?",
+  "main": "web-worker-manager.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mike96Angelo/web-worker-manager.git"
+  },
+  "author": "",
+  "license": "BSD-2-Clause",
+  "bugs": {
+    "url": "https://github.com/Mike96Angelo/web-worker-manager/issues"
+  },
+  "homepage": "https://github.com/Mike96Angelo/web-worker-manager",
+  "devDependencies": {
+    "grunt": "~0.4.2",
+    "grunt-contrib-uglify": "~0.3.2",
+    "matchdep": "~0.3.0"
+  }
+}
