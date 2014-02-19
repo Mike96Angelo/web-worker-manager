@@ -1,0 +1,17 @@
+{
+  "name": "web-worker-manager",
+  "main": "web-worker-manager.js",
+  "version": "0.1.0",
+  "homepage": "https://github.com/Mike96Angelo/web-worker-manager",
+  "authors": [
+    "Michaelangelo Jong <mike96jong@gmail.com>"
+  ],
+  "description": "Have long running tasks that you want to perform without blocking your main process?",
+  "keywords": [
+    "manager",
+    "worker",
+    "web",
+    "worker"
+  ],
+  "license": "BSD-2-Clause"
+}
