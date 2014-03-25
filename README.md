@@ -5,9 +5,10 @@ Have long running tasks that you want to perform without blocking your main proc
 
 Use: web-worker-manager
 
-    The manager will handle all the scariness of "threading" or using "Web Workers".  Just created a worker file that has all your long running
-    tasks on it.  The manager will supply a worker object that will handle
-    all thread communications, just use "worker.on(taskName, taskFunction)"
+    The manager will handle all the scariness of "threading" or using 
+    "Web-Workers".  Just created a worker file that has all your long
+    running tasks on it.  The manager will supply a worker object that 
+    will handle all thread communications, just use "worker.on" method
     in your worker file to register your tasks.
 
 To use web-worker-manager:
