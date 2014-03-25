@@ -15,9 +15,10 @@ To use web-worker-manager:
 
     include web-worker-manager.js in your web projects
 
-Documentation:
+Documentation
+=============
 
-    Create a Manager object:
+Create a Manager object:
 
 ```javascript
 var manager = new Manager(workerFilename, workerLimit)
@@ -26,7 +27,7 @@ var manager = new Manager(workerFilename, workerLimit)
     workerLimit:    Number{maximum number of worker}
 ```
 
-    Properties:
+Properties:
 
 ```javascript
 manager.workers:       Number{number of worker}
@@ -34,7 +35,7 @@ manager.activeWorkers: Number{number of worker doing tasks}
 manager.tasks:         Number{number of unfinished tasks}
 ```
 
-    Methods:
+Methods:
 
 ```javascript
 manager.send(taskName, [...data], [callback])
