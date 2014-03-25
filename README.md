@@ -5,7 +5,10 @@ Have long running tasks that you want to perform without blocking your main proc
 
 Use: web-worker-manager
 
-    The manager will handle all the scariness of "threading" or using "Web Workers".  Just created a worker file that has all your long running tasks on it.  The manager will supply a worker object that will handle all thread communications, just use "worker.on(taskName, taskFunction);" in your worker file to register your tasks.
+    The manager will handle all the scariness of "threading" or using "Web Workers".  Just created a worker file that has all your long running
+    tasks on it.  The manager will supply a worker object that will handle
+    all thread communications, just use "worker.on(taskName, taskFunction)"
+    in your worker file to register your tasks.
 
 To use web-worker-manager:
 
@@ -13,44 +16,45 @@ To use web-worker-manager:
 
 Documentation:
 ```javascript
-    var manager = new Manager(workerFilename, workerLimit)
+var manager = new Manager(workerFilename, workerLimit)
 
-        workerFilename: String{file path to worker file}
-        workerLimit:    Number{maximum number of worker}
+    workerFilename: String{file path to worker file}
+    workerLimit:    Number{maximum number of worker}
 
-        properties:
+    properties:
 
-            manager.workers:       Number{number of worker}
-            manager.activeWorkers: Number{number of worker doing tasks}
-            manager.tasks:         Number{number of unfinished tasks}
+        manager.workers:       Number{number of worker}
+        manager.activeWorkers: Number{number of worker doing tasks}
+        manager.tasks:         Number{number of unfinished tasks}
 
-        methods:
+    methods:
 
-            manager.send(taskName, [...data], [callback])
-                arguments:
-                    taskName: String{name given to task in worker file}
-                    data:     Arguments{arguments supplied to worker task}
-                    callback: Function{what gets called when task is completed}
-                        args: err, data, mess
-                            err:  Error{if worker has error completing task}
-                            data: Returns{what the worker task returns}
-                            mess: Object{full details of task at hand}
+        manager.send(taskName, [...data], [callback])
 
-                returns:
-                    Number{id assigned to task by manager}
+            taskName: String{name given to task in worker file}
+            data:     Arguments{arguments supplied to worker task}
+            callback: Function{what gets called when task is completed}
 
-                does:
-                    creates a new task and sends it to a worker to be done, calls the callback given on task completion.
+                err:  Error{if worker has error completing task}
+                data: Returns{what the worker task returns}
+                mess: Object{full details of task at hand}
 
-            manager.clear(taskId)
-                arguments:
-                    taskId: Number{id assigned to task by manager}
+            returns:
+                Number{id assigned to task by manager}
 
-                returns:
-                    Boolean{true if task was cleared false otherwise}
+            does:
+                creates a new task and sends it to a worker to be done,
+                calls the callback given on task completion.
 
-                does:
-                    clears task if task hasn't being completed.
+        manager.clear(taskId)
+
+            taskId: Number{id assigned to task by manager}
+
+            returns:
+                Boolean{true if task was cleared false otherwise}
+
+            does:
+                clears task if task hasn\'t being completed.
 ```
 Example Web Worker file: 'worker.js'
 ```javascript
